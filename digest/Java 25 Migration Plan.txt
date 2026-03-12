@@ -1,0 +1,493 @@
+⏺ Java 25 Migration Plan for exchange-core
+
+  This is a high-performance, low-latency trading system, so migration needs to be done carefully to avoid performance regressions. Here's a phased approach:
+
+  ---
+  🎯 Migration Strategy Overview
+
+  Phase 1: Target Java 17 LTS First (Recommended)
+
+  Phase 2: Then migrate Java 17 → Java 21 LTS
+
+  Phase 3: Finally Java 21 → Java 25
+
+  Why phased? Java 17 and 21 are LTS releases with better library support. Java 25 is cutting-edge and many performance libraries lag behind.
+
+  ---
+  📋 Phase 1: Java 8 → Java 17 Migration
+
+  1. Update Project Configuration
+
+  <properties>
+      <java.version>17</java.version>
+      <maven.compiler.target>17</maven.compiler.target>
+      <maven.compiler.source>17</maven.compiler.source>
+  </properties>
+
+  2. Critical Dependency Upgrades
+
+  Update your pom.xml with Java 17+ compatible versions:
+
+  <!-- Core dependencies -->
+  <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.36</version> <!-- ✅ Already updated -->
+  </dependency>
+
+  <!-- OpenHFT Chronicle-Wire (CRITICAL) -->
+  <dependency>
+      <groupId>net.openhft</groupId>
+      <artifactId>chronicle-wire</artifactId>
+      <version>2.25ea104</version> <!-- From 2.19.1 -->
+  </dependency>
+
+  <dependency>
+      <groupId>net.openhft</groupId>
+      <artifactId>affinity</artifactId>
+      <version>3.23.3</version> <!-- From 3.2.2 -->
+  </dependency>
+
+  <!-- LMAX Disruptor -->
+  <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+      <version>4.0.0</version> <!-- From 3.4.2 - Major version bump! -->
+  </dependency>
+
+  <!-- Real Logic Agrona -->
+  <dependency>
+      <groupId>org.agrona</groupId>
+      <artifactId>agrona</artifactId>
+      <version>1.21.2</version> <!-- From 1.15.1 -->
+  </dependency>
+
+  <!-- Eclipse Collections -->
+  <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections-api</artifactId>
+      <version>11.1.0</version> <!-- From 11.0.0 -->
+  </dependency>
+
+  <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections</artifactId>
+      <version>11.1.0</version>
+  </dependency>
+
+  <!-- JNA -->
+  <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna-platform</artifactId>
+      <version>5.14.0</version> <!-- From 5.11.0 -->
+  </dependency>
+
+  <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna</artifactId>
+      <version>5.14.0</version>
+  </dependency>
+
+  <!-- Logging -->
+  <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.16</version> <!-- From 1.7.36 - Major version! -->
+  </dependency>
+
+  <!-- Logback (test scope) -->
+  <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.4.14</version> <!-- From 1.2.11 -->
+      <scope>test</scope>
+  </dependency>
+
+  <!-- LZ4 -->
+  <dependency>
+      <groupId>org.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+      <version>1.8.0</version> <!-- Already current -->
+  </dependency>
+
+  <!-- Test dependencies -->
+  <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.10.3</version> <!-- From 5.8.2 -->
+      <scope>test</scope>
+  </dependency>
+
+  <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.13.0</version> <!-- From 4.5.1 -->
+      <scope>test</scope>
+  </dependency>
+
+  <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>5.13.0</version>
+      <scope>test</scope>
+  </dependency>
+
+  <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.3.1-jre</version> <!-- From 31.1-jre -->
+      <scope>test</scope>
+  </dependency>
+
+  <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.17.0</version> <!-- From 3.12.0 -->
+      <scope>test</scope>
+  </dependency>
+
+  3. Update Maven Plugins
+
+  <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <version>3.13.0</version>
+      <configuration>
+          <release>17</release>
+      </configuration>
+  </plugin>
+
+  <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-surefire-plugin</artifactId>
+      <version>3.5.2</version> <!-- From 3.0.0-M3 -->
+      <configuration>
+          <argLine>
+              --add-opens java.base/java.lang=ALL-UNNAMED
+              --add-opens java.base/java.nio=ALL-UNNAMED
+              --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+              --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
+              --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+          </argLine>
+      </configuration>
+  </plugin>
+
+  <plugin>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok-maven-plugin</artifactId>
+      <version>1.18.20.0</version>
+      <configuration>
+          <skip>false</skip> <!-- Re-enable if needed -->
+      </configuration>
+  </plugin>
+
+  4. Handle Unsafe API Changes
+
+  The project uses sun.misc.Unsafe via OpenHFT Chronicle. For Java 17+:
+
+  Current code (UnsafeUtils.java line 23):
+  import static net.openhft.chronicle.core.UnsafeMemory.UNSAFE;
+
+  ✅ Good news: OpenHFT abstracts this, so updating chronicle-wire should handle it.
+
+  However, if you encounter issues, consider:
+  - Using VarHandle API (Java 9+) as a safer alternative
+  - OpenHFT's newer versions handle Java 17+ module restrictions
+
+  5. Code Changes Required
+
+  A. Disruptor 4.0.0 Breaking Changes
+
+  Disruptor 4.0 has API changes. Check usages:
+
+  # Find all Disruptor imports
+  grep -r "com.lmax.disruptor" src/
+
+  Key changes:
+  - EventFactory → functional interface
+  - Some method signatures changed
+  - WaitStrategy implementations may differ
+
+  B. Remove Java 8 Specific Code
+
+  Search for:
+  # Anonymous inner classes that can be lambdas
+  # Stream API improvements available
+  # Optional improvements
+
+  C. Potential Issues with Reflection
+
+  Check reflection usage:
+  grep -r "getDeclaredField\|setAccessible" src/
+
+  For Java 17+, you may need --add-opens for reflection on JDK internals.
+
+  ---
+  📋 Phase 2: Java 17 → Java 21 Migration
+
+  1. Update Project Configuration
+
+  <java.version>21</java.version>
+  <maven.compiler.target>21</maven.compiler.target>
+  <maven.compiler.source>21</maven.compiler.source>
+
+  2. Dependency Updates
+
+  <!-- Update to latest Java 21 compatible versions -->
+  <dependency>
+      <groupId>net.openhft</groupId>
+      <artifactId>chronicle-wire</artifactId>
+      <version>2.27ea13</version>
+  </dependency>
+
+  <dependency>
+      <groupId>org.agrona</groupId>
+      <artifactId>agrona</artifactId>
+      <version>1.23.1</version>
+  </dependency>
+
+  3. Leverage Java 21 Features
+
+  Consider adopting:
+  - Virtual Threads (Project Loom) - May improve throughput
+  - Pattern Matching - Cleaner code
+  - Record Patterns - Better data structures
+  - Sequenced Collections - New collection APIs
+
+  4. Performance Testing
+
+  ⚠️ Critical: Benchmark after Java 21 migration!
+  - Virtual threads might impact latency characteristics
+  - GC improvements (ZGC, G1GC enhancements)
+  - Run your PerfLatency tests extensively
+
+  ---
+  📋 Phase 3: Java 21 → Java 25 Migration
+
+  1. Current State (March 2026)
+
+  Java 25 is very new. Check if these libraries support it:
+
+  # Check Maven Central for latest versions
+  # chronicle-wire: likely still catching up
+  # agrona: Real Logic is usually fast to update
+  # disruptor: LMAX updates may lag
+
+  2. Required Dependency Versions
+
+  As of March 2026, you'll need to check:
+  - chronicle-wire: 2.27+ (verify Java 25 support)
+  - agrona: 1.24+
+  - disruptor: 4.0.0+ (verify compatibility)
+  - jna: 5.15+
+
+  3. Module System (JPMS)
+
+  Consider migrating to Java modules:
+
+  Create module-info.java:
+  module exchange.core2.exchange.core {
+      requires org.slf4j;
+      requires lombok;
+      requires com.lmax.disruptor;
+      requires org.eclipse.collections.api;
+      requires org.agrona.core;
+      requires net.openhft.chronicle.wire;
+
+      // Open packages for reflection
+      opens exchange.core2.core.common.cmd to net.openhft.chronicle.wire;
+
+      exports exchange.core2.core;
+      exports exchange.core2.core.common;
+  }
+
+  4. JVM Flags for Java 25
+
+  Update Surefire plugin:
+  <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-surefire-plugin</artifactId>
+      <version>3.5.2</version>
+      <configuration>
+          <argLine>
+              --add-opens java.base/java.lang=ALL-UNNAMED
+              --add-opens java.base/java.nio=ALL-UNNAMED
+              --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+              --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
+              --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+              --add-exports java.base/jdk.internal.vm=ALL-UNNAMED
+          </argLine>
+      </configuration>
+  </plugin>
+
+  ---
+  🔍 Testing Strategy
+
+  1. Compatibility Testing
+
+  # Clean build
+  mvn clean compile
+
+  # Run unit tests
+  mvn test
+
+  # Run integration tests
+  mvn verify -Pit
+
+  # Run performance tests
+  mvn -Dtest=PerfLatency test
+  mvn -Dtest=PerfThroughput test
+
+  2. Performance Benchmarking
+
+  Create baseline measurements on Java 8:
+  # Before migration - Java 8
+  mvn -Dtest=PerfLatency#testLatencyMargin test > java8-baseline.txt
+
+  # After migration - Java 17/21/25
+  mvn -Dtest=PerfLatency#testLatencyMargin test > java17-results.txt
+
+  # Compare latencies at various throughputs
+  diff java8-baseline.txt java17-results.txt
+
+  Key metrics to watch:
+  - Median latency (50th percentile)
+  - 99th percentile latency
+  - 99.9th percentile latency
+  - Maximum throughput before latency degradation
+  - GC pause times
+
+  3. JMH Benchmarks
+
+  Consider adding JMH for micro-benchmarks:
+  <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <version>1.37</version>
+      <scope>test</scope>
+  </dependency>
+
+  ---
+  ⚠️ Known Issues & Workarounds
+
+  1. Chronicle-Wire Internal API Access
+
+  Problem: Accesses sun.nio.ch.FileChannelImpl.unmap0()
+
+  Solution:
+  - Update to chronicle-wire 2.25+
+  - If still fails, add JVM flag: --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+
+  2. Unsafe Access
+
+  Problem: sun.misc.Unsafe restrictions
+
+  Workarounds:
+  - Use OpenHFT's abstraction (already doing this ✅)
+  - Consider migrating to VarHandle for new code
+  - Add --add-opens flags as needed
+
+  3. Performance Regression
+
+  Problem: Newer JVMs might have different performance characteristics
+
+  Mitigation:
+  - Test with different GC algorithms: -XX:+UseZGC, -XX:+UseG1GC
+  - Tune GC for low latency: -XX:MaxGCPauseMillis=1
+  - Consider using GraalVM for better performance
+  - Profile with Java Flight Recorder
+
+  ---
+  🚀 Recommended Migration Path
+
+  Option A: Conservative (Production Systems)
+
+  Java 8 → Java 11 LTS → Java 17 LTS → Java 21 LTS → [wait] → Java 25
+  Timeline: 6-12 months
+  Risk: Low
+
+  Option B: Moderate (Most Teams)
+
+  Java 8 → Java 17 LTS → Java 21 LTS → Java 25
+  Timeline: 3-6 months
+  Risk: Medium
+
+  Option C: Aggressive (Early Adopters)
+
+  Java 8 → Java 21 LTS → Java 25
+  Timeline: 2-3 months
+  Risk: High
+
+  ---
+  📝 Migration Checklist
+
+  - Set up Java 17/21/25 environments via SDKMAN
+  - Create feature branch: git checkout -b java17-migration
+  - Update pom.xml with new Java version
+  - Update all dependencies (start with compile errors)
+  - Fix compilation errors
+  - Run unit tests - fix failures
+  - Run integration tests
+  - Run performance benchmarks - compare results
+  - Test with production-like load
+  - Update CI/CD pipelines
+  - Update documentation
+  - Train team on new Java features
+  - Deploy to staging environment
+  - Performance testing in staging
+  - Gradual rollout to production
+
+  ---
+  🎁 Benefits of Migration
+
+  Java 17 LTS Benefits:
+
+  - Sealed Classes - Better type safety
+  - Pattern Matching - Cleaner code
+  - Text Blocks - Better readability
+  - Records - Immutable data carriers
+  - Enhanced NullPointerExceptions - Better debugging
+
+  Java 21 LTS Benefits:
+
+  - Virtual Threads - Potentially higher throughput
+  - Sequenced Collections - Better APIs
+  - Record Patterns - Even cleaner code
+  - String Templates (Preview) - Better string handling
+  - Performance improvements - Better GC, JIT
+
+  Java 25 Benefits:
+
+  - Latest performance optimizations
+  - Security patches
+  - Cutting-edge JVM improvements
+  - Future-proofing
+
+  ---
+  🔧 GraalVM Alternative
+
+  Consider using GraalVM for even better performance:
+
+  sdk install java 25-graal
+  sdk use java 25-graal
+
+  # Native image compilation (optional)
+  mvn package -Pnative
+
+  GraalVM benefits:
+  - Better peak performance
+  - Lower memory footprint
+  - Native image compilation
+  - Polyglot capabilities
+
+  ---
+  💡 Final Recommendations
+
+  1. Start with Java 17 LTS - Most stable path, good library support
+  2. Comprehensive testing - This is a trading system; performance regression = $$$ lost
+  3. Incremental rollout - Canary deployment, gradual traffic shift
+  4. Monitor closely - Latency, throughput, GC pauses, error rates
+  5. Keep fallback plan - Ability to rollback to Java 8 quickly
+  6. Consider GraalVM - Especially for production workloads
+
+  Would you like me to help implement any specific phase of this migration?
