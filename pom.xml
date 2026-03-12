@@ -233,7 +233,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.10.3</version>
+            <version>5.11.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -251,25 +251,25 @@
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java8</artifactId>
-            <version>7.2.3</version>
+            <version>7.18.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-junit-platform-engine</artifactId>
-            <version>7.2.3</version>
+            <version>7.18.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-suite</artifactId>
-            <version>1.8.2</version>
+            <version>1.10.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
-            <version>7.2.3</version>
+            <version>7.18.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -296,16 +296,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>3.5.2</version>
                         <configuration>
-                            <argLine>
-                                --add-opens java.base/java.lang=ALL-UNNAMED
-                                --add-opens java.base/java.nio=ALL-UNNAMED
-                                --add-opens java.base/sun.nio.ch=ALL-UNNAMED
-                                --add-opens java.base/java.util=ALL-UNNAMED
-                                --add-opens java.base/java.lang.reflect=ALL-UNNAMED
-                                --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
-                                --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
-                                --add-exports java.base/sun.nio.ch=ALL-UNNAMED
-                            </argLine>
+                            <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-exports java.base/sun.nio.ch=ALL-UNNAMED</argLine>
                         </configuration>
                     </plugin>
 
@@ -455,16 +446,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <version>3.5.2</version>
                         <configuration combine.self="override">
-                            <argLine>
-                                --add-opens java.base/java.lang=ALL-UNNAMED
-                                --add-opens java.base/java.nio=ALL-UNNAMED
-                                --add-opens java.base/sun.nio.ch=ALL-UNNAMED
-                                --add-opens java.base/java.util=ALL-UNNAMED
-                                --add-opens java.base/java.lang.reflect=ALL-UNNAMED
-                                --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
-                                --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
-                                --add-exports java.base/sun.nio.ch=ALL-UNNAMED
-                            </argLine>
+                            <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-exports java.base/sun.nio.ch=ALL-UNNAMED</argLine>
                             <redirectTestOutputToFile>true</redirectTestOutputToFile>
                             <includes>
                                 <include>**/IT*.java</include>
