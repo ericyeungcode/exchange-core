@@ -81,7 +81,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.24</version>
+            <version>1.18.36</version>
             <scope>provided</scope>
         </dependency>
 
@@ -291,6 +291,7 @@
                             <outputDirectory>${delombok.output}</outputDirectory>
                             <addOutputDirectory>false</addOutputDirectory>
                             <encoding>UTF-8</encoding>
+                            <skip>true</skip>
                         </configuration>
                         <executions>
                             <execution>
@@ -300,6 +301,13 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>1.18.36</version>
+                            </dependency>
+                        </dependencies>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
