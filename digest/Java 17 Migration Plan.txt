@@ -1,0 +1,193 @@
+Java 17 Migration Plan for exchange-core
+
+ Context
+
+ This project is a high-performance, low-latency market exchange core currently built on Java 8 (1.8). The user has already switched to Java 17 locally and needs to migrate the
+ entire project to Java 17. This migration is critical because:
+
+ - Java 8 is end-of-life and no longer receiving public updates
+ - Java 17 is an LTS release with better performance, security, and modern language features
+ - The project uses performance-critical libraries (LMAX Disruptor, OpenHFT Chronicle, Real Logic Agrona) that have updated versions supporting Java 17
+ - A comprehensive migration plan already exists (digest/Java 25 Migration Plan.txt) that recommends Java 17 as the first migration target
+
+ The project is a Maven-based build with extensive use of:
+ - LMAX Disruptor for ring buffer processing
+ - OpenHFT Chronicle for unsafe memory operations and serialization
+ - Eclipse Collections for high-performance collections
+ - Lombok for code generation
+ - JUnit 5 and Mockito for testing
+
+ Migration Approach
+
+ This is a Phase 1 migration (Java 8 → Java 17) following the existing migration plan. The changes are primarily configuration-based with minimal code changes required since:
+ - EventFactory usage already uses method references (compatible with Disruptor 4.0)
+ - Unsafe operations are abstracted through OpenHFT Chronicle
+ - Modern Java patterns are already in use (lambdas, streams)
+
+ Critical Files to Modify
+
+ 1. Build Configuration
+
+ - pom.xml (lines 48-50): Update Java version properties from 1.8 to 17
+
+ 2. Dependencies to Upgrade
+
+ Major version upgrades required for Java 17 compatibility:
+ - Disruptor: 3.4.2 → 4.0.0 (breaking changes, but code already compatible)
+ - chronicle-wire: 2.19.1 → 2.25ea104
+ - affinity: 3.2.2 → 3.23.3
+ - agrona: 1.15.1 → 1.21.2
+ - slf4j-api: 1.7.36 → 2.0.16 (major version)
+ - logback-classic: 1.2.11 → 1.4.14
+ - JNA: 5.11.0 → 5.14.0
+ - JUnit: 5.8.2 → 5.10.3
+ - Mockito: 4.5.1 → 5.13.0
+ - Guava: 31.1-jre → 33.3.1-jre (test scope)
+ - commons-lang3: 3.12.0 → 3.17.0 (test scope)
+ - Eclipse Collections: 11.0.0 → 11.1.0
+
+ 3. Maven Plugins to Upgrade
+
+ - maven-surefire-plugin: 3.0.0-M3 → 3.5.2
+   - CRITICAL: Must add --add-opens JVM arguments for internal API access
+ - maven-compiler-plugin: Add explicit configuration with <release>17</release>
+
+ 4. CI/CD Configuration
+
+ - .travis.yml (lines 3-4): Update from oraclejdk8 to Java 17
+
+ 5. Test Scripts
+
+ - run-test-java8.sh: Update to use Java 17 JAVA_HOME
+
+ Required JVM Flags for Java 17
+
+ Java 17's module system restricts access to internal APIs. The project requires these --add-opens flags in Surefire configuration:
+
+ --add-opens java.base/java.lang=ALL-UNNAMED
+ --add-opens java.base/java.nio=ALL-UNNAMED
+ --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+ --add-opens java.base/java.util=ALL-UNNAMED
+ --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+ --add-opens java.base/jdk.internal.ref=ALL-UNNAMED
+ --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+ --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+
+ These flags are necessary because:
+ - OpenHFT Chronicle accesses sun.nio.ch internals for memory-mapped files
+ - UnsafeUtils.java uses UNSAFE for volatile operations
+ - Reflection is used in WaitSpinningHelper.java to extract internal Disruptor fields
+
+ Code Review Findings
+
+ Good news: Most code is already Java 17-compatible!
+ - src/main/java/exchange/core2/core/ExchangeCore.java:93: EventFactory already uses method reference OrderCommand::new (compatible with Disruptor 4.0)
+ - src/main/java/exchange/core2/core/utils/UnsafeUtils.java:23: Uses OpenHFT's UNSAFE abstraction which will be handled by updated chronicle-wire
+ - Modern Java patterns already in use throughout codebase
+
+ Areas requiring attention:
+ - src/main/java/exchange/core2/core/processors/WaitSpinningHelper.java:52-54: Uses reflection to access Disruptor internals - may need testing with Disruptor 4.0
+ - Verify all Disruptor imports after upgrade for API compatibility
+
+ Implementation Steps
+
+ 1. Update pom.xml Java version properties
+   - Set java.version, maven.compiler.target, maven.compiler.source to 17
+ 2. Upgrade all dependencies to Java 17-compatible versions
+   - Update all dependency versions in one commit
+   - Pay special attention to major version upgrades (Disruptor, SLF4J)
+ 3. Add/update Maven compiler plugin configuration
+   - Add explicit <release>17</release> configuration
+ 4. Update maven-surefire-plugin with JVM arguments
+   - Add all required --add-opens and --add-exports flags
+ 5. Update CI/CD configuration
+   - Modify .travis.yml to use Java 17
+ 6. Build and test
+   - Run mvn clean compile to verify compilation
+   - Run mvn test for unit tests
+   - Run mvn verify -Pit for integration tests
+   - CRITICAL: Run performance tests and compare to baseline:
+       - mvn -Dtest=PerfLatency#testLatencyMargin test
+     - mvn -Dtest=PerfThroughput#testThroughputMargin test
+ 7. Create test script for Java 17
+   - Update run-test-java8.sh or create run-test-java17.sh
+
+ Verification Strategy
+
+ Functional Verification
+
+ - Clean build: mvn clean compile
+ - Unit tests: mvn test
+ - Integration tests: mvn verify -Pit
+ - Cucumber tests should still pass
+
+ Performance Verification (CRITICAL for trading system)
+
+ Before and after comparison for:
+ - Median latency (50th percentile)
+ - 99th percentile latency
+ - 99.9th percentile latency
+ - Maximum throughput
+ - GC pause times
+
+ Run performance benchmarks:
+ mvn -Dtest=PerfLatency test > java17-latency-results.txt
+ mvn -Dtest=PerfThroughput test > java17-throughput-results.txt
+ mvn -Dtest=PerfHiccups test > java17-hiccups-results.txt
+
+ Compatibility Verification
+
+ - Verify serialization/deserialization still works (disk journaling compatibility)
+ - Verify state snapshots can be loaded
+ - Test with production-like workload if possible
+
+ Risk Mitigation
+
+ 1. Disruptor 4.0.0 Breaking Changes
+   - Risk: API incompatibilities
+   - Mitigation: Code review shows EventFactory already uses method reference syntax (compatible)
+   - Action: Test WaitSpinningHelper thoroughly as it uses reflection on Disruptor internals
+ 2. SLF4J Major Version Upgrade (1.x → 2.x)
+   - Risk: Logging API changes
+   - Mitigation: Most logging code uses simple patterns that are compatible
+   - Action: Test all logging thoroughly
+ 3. Performance Regression
+   - Risk: Java 17 may have different performance characteristics
+   - Mitigation: Extensive performance testing before production deployment
+   - Action: Run full performance test suite and compare metrics
+ 4. Unsafe API Access
+   - Risk: Module system restrictions on internal API access
+   - Mitigation: --add-opens flags configured + OpenHFT abstracts Unsafe usage
+   - Action: Verify UnsafeUtils operations work correctly
+ 5. Serialization Compatibility
+   - Risk: Serialized data from Java 8 may not deserialize on Java 17
+   - Mitigation: Chronicle-Wire handles cross-version compatibility
+   - Action: Test loading existing snapshots and journals
+
+ Rollback Plan
+
+ If critical issues arise:
+ 1. Revert pom.xml changes
+ 2. Revert .travis.yml changes
+ 3. Switch JAVA_HOME back to Java 8
+ 4. Run mvn clean install with Java 8
+
+ Success Criteria
+
+ ✅ Project compiles successfully with Java 17
+ ✅ All unit tests pass
+ ✅ All integration tests pass
+ ✅ Performance metrics within acceptable range (±5% of Java 8 baseline)
+ ✅ No critical errors or warnings in logs
+ ✅ CI/CD pipeline succeeds with Java 17
+
+ Future Considerations
+
+ After successful Java 17 migration:
+ - Consider Java 21 LTS migration (virtual threads, better GC)
+ - Evaluate GraalVM for native compilation and better performance
+ - Consider adopting Java 17+ features:
+   - Records for immutable data carriers
+   - Sealed classes for better type safety
+   - Pattern matching for cleaner code
+   - Text blocks for better readability
