@@ -1,0 +1,70 @@
+# #Explain matchingEngineFutures
+
+  matchingEngineFutures (line 132 in ExchangeCore.java) is a Map<Integer, CompletableFuture<MatchingEngineRouter>> that handles parallel initialization of matching engines during
+   exchange startup.
+
+  What it does:
+
+  1. Creates multiple MatchingEngineRouter instances asynchronously:
+    - Uses CompletableFuture.supplyAsync() to create matchingEnginesNum routers in parallel
+    - Each router is created in a separate thread from loaderExecutor thread pool
+    - Map key is the shard ID (0 to matchingEnginesNum-1)
+  2. Purpose: Speed up initialization by creating all matching engines concurrently rather than sequentially
+  3. Usage (line 151-154):
+  matchingEngineFutures.values().stream()
+      .map(CompletableFuture::join)  // Wait for completion
+      .map(mer -> (EventHandler<OrderCommand>) (cmd, seq, eob) -> mer.processOrder(seq, cmd))
+      .toArray(ExchangeCore::newEventHandlersArray);
+    - .join() blocks until each MatchingEngineRouter is fully initialized
+    - Converts each router into an EventHandler for processing orders
+    - These handlers are then connected to the Disruptor ring buffer
+
+  Key benefit:
+
+  If creating a MatchingEngineRouter takes 100ms and you have 4 engines, this parallelization reduces startup from ~400ms to ~100ms.        
+
+
+# #Explain afterGrouping.handleEventsWith
+
+  afterGrouping.handleEventsWith() is a Disruptor framework method that sets up event handlers to run in parallel after a previous group of handlers completes.
+
+  Context (ExchangeCore.java:191-210)
+
+  The code builds a pipeline of event processors:
+
+  // 1. Create the grouping stage
+  final EventHandlerGroup<OrderCommand> afterGrouping =
+      disruptor.handleEventsWith(...new GroupingProcessor...);
+
+  // 2. Add handlers that run AFTER grouping, IN PARALLEL with each other
+  afterGrouping.handleEventsWith(jh);  // Journaling handler
+
+  riskEngines.forEach((idx, riskEngine) -> afterGrouping.handleEventsWith(...));  // Risk processors
+
+  What it does:
+
+  EventHandlerGroup.handleEventsWith() adds handlers that:
+  1. Wait for the previous stage (grouping processor) to finish processing each event
+  2. Execute in parallel with each other (all handlers added via handleEventsWith run concurrently)
+
+  The pipeline structure:
+
+  [Producer]
+     ↓
+  [Grouping Processor (G)]
+     ↓
+     ├─→ [Journaling (J)]           } These run in PARALLEL
+     ├─→ [Risk Hold 1 (R1_0)]        } after Grouping completes
+     └─→ [Risk Hold 2 (R1_1)]        }
+          ↓
+     [Matching Engines (ME)]
+          ↓
+     [Risk Release (R2)] + [Results (E)]
+
+  Key difference:
+
+  - afterGrouping.handleEventsWith(handler) = handler runs in parallel with other handlers at same stage
+  - disruptor.after(procR1.....).handleEventsWith(matchingEngineHandlers) = handler waits for all previous handlers to complete
+
+  This allows the exchange to process journaling and risk checks concurrently, maximizing throughput.
+         
