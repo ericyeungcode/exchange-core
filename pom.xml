@@ -150,6 +150,14 @@
             <version>1.8.0</version>
         </dependency>
 
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>3.2.5</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- test scope -->
         <dependency>
             <groupId>com.paritytrading.juncture</groupId>
@@ -327,6 +335,18 @@
                             </dependency>
                         </dependencies>
                     </plugin>
+
+                    <!-- Spring Boot Maven Plugin (optional - only for running as REST API) -->
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>3.2.5</version>
+                        <configuration>
+                            <mainClass>exchange.core2.rest.ExchangeCoreApplication</mainClass>
+                            <skip>true</skip> <!-- Skip by default, enable with -Dspring-boot.run.skip=false -->
+                        </configuration>
+                    </plugin>
+
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-antrun-plugin</artifactId>
